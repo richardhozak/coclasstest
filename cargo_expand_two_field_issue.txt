@@ -1,0 +1,168 @@
+#![feature(prelude_import)]
+#[prelude_import]
+use std::prelude::v1::*;
+#[macro_use]
+extern crate std;
+use com::{co_class, interfaces::iunknown::IUnknown};
+#[repr(C)]
+struct Test {
+    __iunknownvptr: *const <dyn IUnknown as com::ComInterface>::VTable,
+    __refcnt: std::cell::Cell<u32>,
+    field1: u32,
+    field2: u32,
+}
+impl Test {
+    fn allocate(field1: u32, field2: u32) -> Box<Test> {
+        let iunknown_vtable =
+            <dyn IUnknown as ::com::ProductionComInterface<Test>>::vtable::<::com::offset::Zero>();
+        let __iunknownvptr = Box::into_raw(Box::new(iunknown_vtable));
+        let out = Test {
+            __iunknownvptr,
+            __refcnt: std::cell::Cell::new(0),
+        };
+        Box::new(out)
+    }
+    pub fn get_class_object() -> Box<TestClassFactory> {
+        <TestClassFactory>::new()
+    }
+}
+unsafe impl com::CoClass for Test {}
+impl com::interfaces::IUnknown for Test {
+    unsafe fn query_interface(
+        &self,
+        riid: *const com::sys::IID,
+        ppv: *mut *mut std::ffi::c_void,
+    ) -> com::sys::HRESULT {
+        let riid = &*riid;
+        if riid == &com::interfaces::iunknown::IID_IUNKNOWN {
+            *ppv = &self.__iunknownvptr as *const _ as *mut std::ffi::c_void;
+        } else if <dyn IUnknown as com::ComInterface>::is_iid_in_inheritance_chain(riid) {
+            *ppv = &self.__iunknownvptr as *const _ as *mut std::ffi::c_void;
+        } else {
+            *ppv = std::ptr::null_mut::<std::ffi::c_void>();
+            return com::sys::E_NOINTERFACE;
+        }
+        self.add_ref();
+        com::sys::NOERROR
+    }
+    unsafe fn add_ref(&self) -> u32 {
+        let value = self
+            .__refcnt
+            .get()
+            .checked_add(1)
+            .expect("Overflow of reference count");
+        self.__refcnt.set(value);
+        value
+    }
+    unsafe fn release(&self) -> u32 {
+        let value = self
+            .__refcnt
+            .get()
+            .checked_sub(1)
+            .expect("Underflow of reference count");
+        self.__refcnt.set(value);
+        let __refcnt = self.__refcnt.get();
+        if __refcnt == 0 {
+            Box::from_raw(self.__iunknownvptr as *mut <dyn IUnknown as com::ComInterface>::VTable);
+            Box::from_raw(self as *const _ as *mut Test);
+        }
+        __refcnt
+    }
+}
+#[repr(C)]
+pub struct TestClassFactory {
+    __iclassfactoryvptr:
+        *const <dyn com::interfaces::iclass_factory::IClassFactory as com::ComInterface>::VTable,
+    __refcnt: std::cell::Cell<u32>,
+}
+impl com::interfaces::IClassFactory for TestClassFactory {
+    unsafe fn create_instance(
+        &self,
+        aggr: *mut *const <dyn com::interfaces::iunknown::IUnknown as com::ComInterface>::VTable,
+        riid: *const com::sys::IID,
+        ppv: *mut *mut std::ffi::c_void,
+    ) -> com::sys::HRESULT {
+        use com::interfaces::iunknown::IUnknown;
+        if aggr != std::ptr::null_mut() {
+            return com::sys::CLASS_E_NOAGGREGATION;
+        }
+        let mut instance = Test::new();
+        instance.add_ref();
+        let hr = instance.query_interface(riid, ppv);
+        instance.release();
+        core::mem::forget(instance);
+        hr
+    }
+    unsafe fn lock_server(&self, _increment: com::sys::BOOL) -> com::sys::HRESULT {
+        com::sys::S_OK
+    }
+}
+impl com::interfaces::IUnknown for TestClassFactory {
+    unsafe fn query_interface(
+        &self,
+        riid: *const com::sys::IID,
+        ppv: *mut *mut std::ffi::c_void,
+    ) -> com::sys::HRESULT {
+        use com::interfaces::iunknown::IUnknown;
+        let riid = &*riid;
+        if riid == &<dyn com::interfaces::iunknown::IUnknown as com::ComInterface>::IID
+            || riid
+                == &<dyn com::interfaces::iclass_factory::IClassFactory as com::ComInterface>::IID
+        {
+            *ppv = &self.__iclassfactoryvptr as *const _ as *mut std::ffi::c_void;
+            self.add_ref();
+            com::sys::NOERROR
+        } else {
+            *ppv = std::ptr::null_mut::<std::ffi::c_void>();
+            com::sys::E_NOINTERFACE
+        }
+    }
+    unsafe fn add_ref(&self) -> u32 {
+        let value = self
+            .__refcnt
+            .get()
+            .checked_add(1)
+            .expect("Overflow of reference count");
+        self.__refcnt.set(value);
+        value
+    }
+    unsafe fn release(&self) -> u32 {
+        use com::interfaces::iclass_factory::IClassFactory;
+        let value = self
+            .__refcnt
+            .get()
+            .checked_sub(1)
+            .expect("Underflow of reference count");
+        self.__refcnt.set(value);
+        let __refcnt = self.__refcnt.get();
+        if __refcnt == 0 {
+            Box::from_raw(
+                self.__iclassfactoryvptr as *mut <dyn IClassFactory as com::ComInterface>::VTable,
+            );
+            Box::from_raw(self as *const _ as *mut TestClassFactory);
+        }
+        __refcnt
+    }
+}
+impl TestClassFactory {
+    pub(crate) fn new() -> Box<TestClassFactory> {
+        use com::interfaces::iclass_factory::IClassFactory;
+        let iclassfactory_vtable = <dyn IClassFactory as ::com::ProductionComInterface<
+            TestClassFactory,
+        >>::vtable::<::com::offset::Zero>();
+        let __iclassfactoryvptr = Box::into_raw(Box::new(iclassfactory_vtable));
+        let out = TestClassFactory {
+            __iclassfactoryvptr,
+            __refcnt: std::cell::Cell::new(0),
+        };
+        Box::new(out)
+    }
+}
+impl Test {
+    fn new() -> Box<Self> {
+        Test::allocate(0, 0)
+    }
+}
+fn main() {
+    let _ = Test::new();
+}
